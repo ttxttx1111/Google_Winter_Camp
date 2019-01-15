@@ -24,7 +24,6 @@ import pickle
 import shutil
 
 local = False
-local = False
 
 if local:
     base_dir = "/home/ttx/Google_Winter_Camp/dmsc_bert/"
@@ -34,7 +33,7 @@ else:
     bert_model = "bert-base-chinese"
 
 
-cached = True
+cached = False
 
 model_id = 3
 load_checkpoint_flag = False
@@ -381,7 +380,7 @@ def main():
 
     parser.add_argument('--gradient_accumulation_steps',
                         type=int,
-                        default=1,
+                        default=2,
                         help="Number of updates steps to accumualte before performing a backward/update pass.")
 
     parser.add_argument('--optimize_on_cpu',
