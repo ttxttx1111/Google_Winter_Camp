@@ -51,37 +51,50 @@ def re_gen_data():
     raw_data.drop(['ID','Movie_Name_EN','Crawl_Date','Number','Date'],axis=1,inplace=True)
     raw_data.to_csv('Data.csv',index=False,encoding='utf-8')
 
-def group_by_stars():
-    raw_data=pandas.read_csv('Data.csv', encoding='utf-8', sep=',')
-    raw_data.drop(['Movie_Name_CN','Username','Like'])
+def group_by_stars(raw_data):
+    raw_data.drop(['Movie_Name_CN','Username','Like'],axis=1)
     for star in range(1,6,1):
         star_data=raw_data[raw_data['Star']==star]
         mp = {}
         for idx,row in star_data.iterrows():
             buf=row['Comment']
             if mp.get(len(buf)):
-                mp[buf]+=1
+                mp[len(buf)]+=1
             else:
-                mp[buf]=1
+                mp[len(buf)]=1
         with open('star'+str(star),'w',encoding='utf-8') as f:
-            for k,v in mp.items():
-                f.write("{} {}\n".format(k,v))
+            sorted_mp=sorted(mp.items(),key=lambda x:x[0])
+            for length in sorted_mp:
+                f.write("{} {}\n".format(length[0],length[1]))
 
-def test(raw_data):
-    with open("comment",'w',encoding='utf-8') as f:
-        stops = stop_set()
-        for idx, row in raw_data.iterrows():
-            buf = row['Comment']
-            word_list = jieba.lcut(buf)
-            for word in word_list:
-                if '\u4e00' <= word <= '\u9fff' and stops.count(word) < 1:
-                    f.write(word+' ')
-            f.write('\n')
+def draw_star():
+    import matplotlib.pyplot as plt
+    fig=plt.figure(figsize=(10,6))
+    colors=['red','green','blue','orange','black']
+    for i in range(5):
+        data=pandas.read_csv('star'+str(i+1),header=None,names=['length','number'],sep=' ')
+        plt.plot(data['length'],data['number'],c=colors[i],label='star'+str(i+1))
+    plt.legend(loc='upper right')
+    plt.show()
+
+def get_key_words_by_star(raw_data):
+    import jieba.analyse
+    raw_data.drop(['Movie_Name_CN', 'Username', 'Like'], axis=1)
+    jieba.analyse.set_stop_words("stop_words")
+    for star in [5,1,3,2,4]:
+        star_data = raw_data[raw_data['Star'] == star]
+        buf=""
+        for idx,row in star_data.iterrows():
+            buf+=row['Comment']
+        tags=jieba.analyse.extract_tags(buf,topK=60)
+        with open("keyword"+str(star),'w',encoding='utf-8') as f:
+            f.write(",".join(tags))
 
 if __name__ == '__main__':
     raw_data=pandas.read_csv('Data.csv',encoding='utf-8',sep=',')
     #gen_dict(raw_data)
     #raw_data=raw_data.head(10)
     #print(filter_comment_by_like(raw_data).shape[0])
-    test(raw_data)
+    get_key_words_by_star(raw_data)
+    #draw_star()
     #print(group_by_user(raw_data))
