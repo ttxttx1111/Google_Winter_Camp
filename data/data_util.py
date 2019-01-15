@@ -1,0 +1,87 @@
+import pandas
+import jieba
+def filter_comment_by_like(data,min_like=10):
+    return data[data['Like']>min_like]
+
+def filter_comment_by_lenth(data,min_len=50):
+    return data[data['Comment'].map(len)>min_len]
+
+def group_by_user(data):
+    return data.groupby('Movie_Name_CN')['Comment'].size()
+
+def filter_user_group(raw_data,min_films=5):
+    """
+
+    :param raw_data:
+    :param min_films: 每个用户最少看过的电影
+    :return:
+    """
+    user_data = group_by_user(raw_data)
+    return user_data[user_data >= min_films]
+
+def stop_set():
+    stops=[]
+    with open('stop_words','r',encoding='utf-8') as f:
+        for line in f.readlines():
+            line=line.strip()
+            stops.append(line)
+    return stops
+
+def gen_dict(raw_data):
+    stops=stop_set()
+    word_map = {}
+    for idx, row in raw_data.iterrows():
+        buf = row['Comment']
+        word_list = jieba.lcut(buf)
+        for word in word_list:
+            if '\u4e00' <= word <= '\u9fff' and stops.count(word)<1:
+                if word_map.get(word):
+                    word_map[word] += 1
+                else:
+                    word_map[word] = 1
+    words = sorted(word_map.items(), key=lambda x: x[1], reverse=True)
+    with open('voc', 'w', encoding='utf-8') as f:
+        for word in words:
+            if word[1]<=100:
+                break
+            f.write('{} {}\n'.format(word[0], word[1]))
+
+def re_gen_data():
+    raw_data = pandas.read_csv('DMSC.csv', encoding='utf-8', sep=',')
+    raw_data.drop(['ID','Movie_Name_EN','Crawl_Date','Number','Date'],axis=1,inplace=True)
+    raw_data.to_csv('Data.csv',index=False,encoding='utf-8')
+
+def group_by_stars():
+    raw_data=pandas.read_csv('Data.csv', encoding='utf-8', sep=',')
+    raw_data.drop(['Movie_Name_CN','Username','Like'])
+    for star in range(1,6,1):
+        star_data=raw_data[raw_data['Star']==star]
+        mp = {}
+        for idx,row in star_data.iterrows():
+            buf=row['Comment']
+            if mp.get(len(buf)):
+                mp[buf]+=1
+            else:
+                mp[buf]=1
+        with open('star'+str(star),'w',encoding='utf-8') as f:
+            for k,v in mp.items():
+                f.write("{} {}\n".format(k,v))
+
+def test(raw_data):
+    with open("comment",'w',encoding='utf-8') as f:
+        stops = stop_set()
+        for idx, row in raw_data.iterrows():
+            buf = row['Comment']
+            word_list = jieba.lcut(buf)
+            for word in word_list:
+                if '\u4e00' <= word <= '\u9fff' and stops.count(word) < 1:
+                    f.write(word+' ')
+            f.write('\n')
+
+if __name__ == '__main__':
+    raw_data=pandas.read_csv('Data.csv',encoding='utf-8',sep=',')
+    #gen_dict(raw_data)
+    #raw_data=raw_data.head(10)
+    #print(filter_comment_by_like(raw_data).shape[0])
+    test(raw_data)
+    #print(group_by_user(raw_data))
