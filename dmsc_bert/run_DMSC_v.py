@@ -23,10 +23,19 @@ from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 import pickle
 import shutil
 
-base_dir = "/home/ttx/Google_Winter_Camp/dmsc_bert/"
+local = True
+
+if local:
+    base_dir = "/home/ttx/Google_Winter_Camp/dmsc_bert/"
+    bert_model = base_dir + "model/chinese"
+else:
+    base_dir = "/home/ttxttx1111/Google_Winter_Camp/dmsc_bert/"
+    bert_model = "bert-base-chinese"
+
 
 cached = True
 
+model_id = 2
 load_checkpoint_flag = False
 checkpoint_path = base_dir + "/model/_epoch_2_part_train.dat"
 
@@ -34,7 +43,6 @@ do_train = True
 do_eval = True
 do_predict = False
 
-model_id = 2
 ###-------------------------global configurations-------------------------
 
 
@@ -294,7 +302,7 @@ def main():
                         type=str,
                         help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
     # parser.add_argument("--bert_model", default="bert-base-chinese", type=str,
-    parser.add_argument("--bert_model", default=base_dir + "model/chinese", type=str,
+    parser.add_argument("--bert_model", default=bert_model, type=str,
 
                         help="Bert pre-trained model selected in the list: bert-base-uncased, "
                              "bert-large-uncased, bert-base-cased, bert-base-multilingual, bert-base-chinese.")

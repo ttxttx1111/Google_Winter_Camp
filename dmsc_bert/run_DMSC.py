@@ -23,9 +23,27 @@ from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 import pickle
 import shutil
 
-base_dir = "/home/ttxttx1111/Google_Winter_Camp/dmsc_bert/"
+local = False
+local = False
 
-cached = False
+if local:
+    base_dir = "/home/ttx/Google_Winter_Camp/dmsc_bert/"
+    bert_model = base_dir + "model/chinese"
+else:
+    base_dir = "/home/ttxttx1111/Google_Winter_Camp/dmsc_bert/"
+    bert_model = "bert-base-chinese"
+
+
+cached = True
+
+model_id = 3
+load_checkpoint_flag = False
+checkpoint_path = base_dir + "/model/_epoch_2_part_train.dat"
+
+do_train = True
+do_eval = True
+do_predict = False
+
 ###-------------------------global configurations-------------------------
 
 
@@ -205,17 +223,17 @@ def convert_examples_to_features(examples, max_seq_length, tokenizer):
             rating = int(example.rating)
 
 
-        if ex_index < 5:
-            logger.info("*** Example ***")
-            logger.info("guid: %s" % (example.guid))
-            logger.info("tokens: %s" % " ".join(
-                    [str(x) for x in tokens]))
-            logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
-            logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
-            logger.info(
-                    "segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
-            if example.rating:
-                logger.info("rating: %s" % (rating))
+        # if ex_index < 5:
+        #     logger.info("*** Example ***")
+        #     logger.info("guid: %s" % (example.guid))
+        #     logger.info("tokens: %s" % " ".join(
+        #             [str(x) for x in tokens]))
+        #     logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
+        #     logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
+        #     logger.info(
+        #             "segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
+        #     if example.rating:
+        #         logger.info("rating: %s" % (rating))
 
         features.append(
                 InputFeatures(input_ids=input_ids,
@@ -284,7 +302,9 @@ def main():
                         default=base_dir + "/input/",
                         type=str,
                         help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
-    parser.add_argument("--bert_model", default="bert-base-chinese", type=str,
+    # parser.add_argument("--bert_model", default="bert-base-chinese", type=str,
+    parser.add_argument("--bert_model", default=bert_model, type=str,
+
                         help="Bert pre-trained model selected in the list: bert-base-uncased, "
                              "bert-large-uncased, bert-base-cased, bert-base-multilingual, bert-base-chinese.")
     parser.add_argument("--task_name",
@@ -296,7 +316,7 @@ def main():
                         type=str,
                         help="The output directory where the model results will be written.")
     parser.add_argument("--model_dir",
-                        default=base_dir + "/model/",
+                        default=base_dir + "/model/" + str(model_id) + "/",
                         type=str,
                         help="The output directory where the model checkpoints will be written.")
 
@@ -304,19 +324,19 @@ def main():
 
     ## Other parameters
     parser.add_argument("--max_seq_length",
-                        default=30,
+                        default=200,
                         type=int,
                         help="The maximum total input sequence length after WordPiece tokenization. \n"
                              "Sequences longer than this will be truncated, and sequences shorter \n"
                              "than this will be padded.")
     parser.add_argument("--do_train",
-                        default=True,
+                        default=do_train,
                         help="Whether to run training.")
     parser.add_argument("--do_eval",
-                        default=False,
+                        default=do_eval,
                         help="Whether to run eval on the dev set.")
     parser.add_argument("--do_predict",
-                        default=False,
+                        default=do_predict,
                         help="Whether to run predict on the test set.")
 
     # if run locally use smaller batch sizes
@@ -376,10 +396,10 @@ def main():
                         type=float, default=128,
                         help='Loss scaling, positive power of 2 values can improve fp16 convergence.')
     parser.add_argument('--load_checkpoint',
-                        default=False,
+                        default=load_checkpoint_flag,
                         help='Whether to load from exisiting checkpoint')
     parser.add_argument('--checkpoint_path',
-                        type=str, default=base_dir + "/dmsc/model/chinese_base_epoch_2_part_train.dat",
+                        type=str, default=checkpoint_path,
                         help='The path of checkpoint to load from')
 
     parser.add_argument('--cached_train_examples', type=str,
@@ -570,6 +590,10 @@ def main():
                         optimizer.step()
                     model.zero_grad()
                     global_step += 1
+
+                    if (step + 1) % 1000 == 0:
+                        print("loss:", tr_loss / nb_tr_steps)
+
             tr_losses.append(tr_loss)
 
             filename = args.model_dir + "_epoch_" + str(epoch) + "_part_train.dat"
@@ -579,10 +603,12 @@ def main():
                              'optimizer': optimizer.state_dict(),
                              },
                             filename=filename)
+
             output_prediction_file = os.path.join(args.output_dir, "train_loss.txt")
             with open(output_prediction_file, "w") as writer:
                 for i, lo in enumerate(tr_losses):
                     writer.write("epoch %s, %s\n" % (str(i), str(lo)))
+
 
     if args.do_eval and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
 
@@ -606,6 +632,7 @@ def main():
                 eval_examples, args.max_seq_length, tokenizer)
             with open(args.cached_dev_features, 'wb') as writer:
                 pickle.dump(eval_features, writer)
+
 
         logger.info("***** Running evaluation *****")
         logger.info("  Num examples = %d", len(eval_examples))
@@ -653,8 +680,8 @@ def main():
         #           'loss': tr_loss/nb_tr_steps}
         # else:
         result = {'eval_loss': eval_loss,
-                  # 'eval_accuracy': eval_accuracy,
-                  'global_step': global_step}
+              # 'eval_accuracy': eval_accuracy,
+              'global_step': global_step}
 
         output_eval_file = os.path.join(args.output_dir, "eval_results.txt")
         with open(output_eval_file, "w") as writer:
@@ -664,7 +691,7 @@ def main():
                 writer.write("%s = %s\n" % (key, str(result[key])))
 
 
-                # if args.do_predict and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
+    # if args.do_predict and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
     #
     #     predictions = {}
     #
