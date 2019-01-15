@@ -140,7 +140,7 @@ class DMSC_Chinese_Processor(DataProcessor):
             text_a = line[8]
             rating = None
             if is_training:
-                rating = int(rating)
+                rating = line[7]
             examples.append(InputExample(guid=guid, text_a=text_a, rating=rating))
         return examples
 
