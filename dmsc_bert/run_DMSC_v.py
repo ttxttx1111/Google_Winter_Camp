@@ -23,9 +23,16 @@ from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 import pickle
 import shutil
 
-base_dir = "/home/ttxttx1111/Google_Winter_Camp/dmsc_bert/"
+base_dir = "/home/ttx/Google_Winter_Camp/dmsc_bert/"
 
 cached = False
+
+load_checkpoint = True
+checkpoint_path = base_dir + "/model/_epoch_2_part_train.dat"
+
+do_train = False
+do_eval = True
+do_predict = False
 ###-------------------------global configurations-------------------------
 
 
@@ -205,17 +212,17 @@ def convert_examples_to_features(examples, max_seq_length, tokenizer):
             rating = int(example.rating)
 
 
-        if ex_index < 5:
-            logger.info("*** Example ***")
-            logger.info("guid: %s" % (example.guid))
-            logger.info("tokens: %s" % " ".join(
-                    [str(x) for x in tokens]))
-            logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
-            logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
-            logger.info(
-                    "segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
-            if example.rating:
-                logger.info("rating: %s" % (rating))
+        # if ex_index < 5:
+        #     logger.info("*** Example ***")
+        #     logger.info("guid: %s" % (example.guid))
+        #     logger.info("tokens: %s" % " ".join(
+        #             [str(x) for x in tokens]))
+        #     logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
+        #     logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
+        #     logger.info(
+        #             "segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
+        #     if example.rating:
+        #         logger.info("rating: %s" % (rating))
 
         features.append(
                 InputFeatures(input_ids=input_ids,
@@ -284,7 +291,9 @@ def main():
                         default=base_dir + "/input/",
                         type=str,
                         help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
-    parser.add_argument("--bert_model", default="bert-base-chinese", type=str,
+    # parser.add_argument("--bert_model", default="bert-base-chinese", type=str,
+    parser.add_argument("--bert_model", default=base_dir + "model/chinese", type=str,
+
                         help="Bert pre-trained model selected in the list: bert-base-uncased, "
                              "bert-large-uncased, bert-base-cased, bert-base-multilingual, bert-base-chinese.")
     parser.add_argument("--task_name",
@@ -310,13 +319,13 @@ def main():
                              "Sequences longer than this will be truncated, and sequences shorter \n"
                              "than this will be padded.")
     parser.add_argument("--do_train",
-                        default=True,
+                        default=do_train,
                         help="Whether to run training.")
     parser.add_argument("--do_eval",
-                        default=False,
+                        default=do_eval,
                         help="Whether to run eval on the dev set.")
     parser.add_argument("--do_predict",
-                        default=False,
+                        default=do_predict,
                         help="Whether to run predict on the test set.")
 
     # if run locally use smaller batch sizes
@@ -361,7 +370,7 @@ def main():
 
     parser.add_argument('--gradient_accumulation_steps',
                         type=int,
-                        default=4,
+                        default=1,
                         help="Number of updates steps to accumualte before performing a backward/update pass.")
 
     parser.add_argument('--optimize_on_cpu',
@@ -376,10 +385,10 @@ def main():
                         type=float, default=128,
                         help='Loss scaling, positive power of 2 values can improve fp16 convergence.')
     parser.add_argument('--load_checkpoint',
-                        default=False,
+                        default=load_checkpoint,
                         help='Whether to load from exisiting checkpoint')
     parser.add_argument('--checkpoint_path',
-                        type=str, default=base_dir + "/dmsc/model/chinese_base_epoch_2_part_train.dat",
+                        type=str, default=checkpoint_path,
                         help='The path of checkpoint to load from')
 
     parser.add_argument('--cached_train_examples', type=str,
@@ -531,6 +540,7 @@ def main():
         train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=args.train_batch_size)
 
         model.train()
+        tr_losses = []
         for epoch in trange(int(args.num_train_epochs), desc="Epoch"):
             tr_loss = 0
             nb_tr_examples, nb_tr_steps = 0, 0
@@ -570,6 +580,11 @@ def main():
                     model.zero_grad()
                     global_step += 1
 
+                    if (step + 1) % 1000 == 0:
+                        print("loss:", tr_loss / nb_tr_steps)
+
+            tr_losses.append(tr_loss)
+
             filename = args.model_dir + "_epoch_" + str(epoch) + "_part_train.dat"
 
             save_checkpoint({'epoch': epoch,
@@ -578,85 +593,91 @@ def main():
                              },
                             filename=filename)
 
+            output_prediction_file = os.path.join(args.output_dir, "train_loss.txt")
+            with open(output_prediction_file, "w") as writer:
+                for i, lo in enumerate(tr_losses):
+                    writer.write("epoch %s, %s\n" % (str(i), str(lo)))
 
-    # if args.do_eval and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
-    #
-    #     if cached:
-    #         # load examples
-    #         with open(args.cached_dev_examples, "rb") as reader:
-    #             eval_examples = pickle.load(reader)
-    #
-    #         # load features
-    #         with open(args.cached_dev_features, "rb") as reader:
-    #             eval_features = pickle.load(reader)
-    #     else:
-    #
-    #         # save examples
-    #         eval_examples = processor.get_dev_examples(args.data_dir)
-    #         with open(args.cached_dev_examples, 'wb') as writer:
-    #             pickle.dump(eval_examples, writer)
-    #
-    #         # save features
-    #         eval_features = convert_examples_to_features(
-    #             eval_examples, label_list, args.max_seq_length, tokenizer)
-    #         with open(args.cached_dev_features, 'wb') as writer:
-    #             pickle.dump(eval_features, writer)
-    #
-    #
-    #     logger.info("***** Running evaluation *****")
-    #     logger.info("  Num examples = %d", len(eval_examples))
-    #     logger.info("  Batch size = %d", args.eval_batch_size)
-    #     all_input_ids = torch.tensor([f.input_ids for f in eval_features], dtype=torch.long)
-    #     all_input_mask = torch.tensor([f.input_mask for f in eval_features], dtype=torch.long)
-    #     all_segment_ids = torch.tensor([f.segment_ids for f in eval_features], dtype=torch.long)
-    #     all_label_ids = torch.tensor([f.label_id for f in eval_features], dtype=torch.long)
-    #     eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
-    #     # Run prediction for full data
-    #     eval_sampler = SequentialSampler(eval_data)
-    #     eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
-    #
-    #     model.eval()
-    #     eval_loss, eval_accuracy = 0, 0
-    #     nb_eval_steps, nb_eval_examples = 0, 0
-    #
-    #     for input_ids, input_mask, segment_ids, label_ids in tqdm(eval_dataloader):
-    #         input_ids = input_ids.to(device)
-    #         input_mask = input_mask.to(device)
-    #         segment_ids = segment_ids.to(device)
-    #         label_ids = label_ids.to(device)
-    #
-    #         with torch.no_grad():
-    #             tmp_eval_loss, logits = model(input_ids, segment_ids, input_mask, label_ids)
-    #
-    #         logits = logits.detach().cpu().numpy()
-    #         label_ids = label_ids.to('cpu').numpy()
-    #         tmp_eval_accuracy = accuracy(logits, label_ids)
-    #
-    #         eval_loss += tmp_eval_loss.mean().item()
-    #         eval_accuracy += tmp_eval_accuracy
-    #
-    #         nb_eval_examples += input_ids.size(0)
-    #         nb_eval_steps += 1
-    #
-    #     eval_loss = eval_loss / nb_eval_steps
-    #     eval_accuracy = eval_accuracy / nb_eval_examples
-    #
-    #     if args.do_train:
-    #         result = {'eval_loss': eval_loss,
-    #               'eval_accuracy': eval_accuracy,
-    #               'global_step': global_step,
-    #               'loss': tr_loss/nb_tr_steps}
-    #     else:
-    #         result = {'eval_loss': eval_loss,
-    #               'eval_accuracy': eval_accuracy,
-    #               'global_step': global_step}
-    #
-    #     output_eval_file = os.path.join(args.output_dir, "eval_results.txt")
-    #     with open(output_eval_file, "w") as writer:
-    #         logger.info("***** Eval results *****")
-    #         for key in sorted(result.keys()):
-    #             logger.info("  %s = %s", key, str(result[key]))
-    #             writer.write("%s = %s\n" % (key, str(result[key])))
+
+    if args.do_eval and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
+
+        if cached:
+            # load examples
+            with open(args.cached_dev_examples, "rb") as reader:
+                eval_examples = pickle.load(reader)
+
+            # load features
+            with open(args.cached_dev_features, "rb") as reader:
+                eval_features = pickle.load(reader)
+        else:
+
+            # save examples
+            eval_examples = processor.get_dev_examples(args.data_dir)
+            with open(args.cached_dev_examples, 'wb') as writer:
+                pickle.dump(eval_examples, writer)
+
+            # save features
+            eval_features = convert_examples_to_features(
+                eval_examples, args.max_seq_length, tokenizer)
+            with open(args.cached_dev_features, 'wb') as writer:
+                pickle.dump(eval_features, writer)
+
+
+        logger.info("***** Running evaluation *****")
+        logger.info("  Num examples = %d", len(eval_examples))
+        logger.info("  Batch size = %d", args.eval_batch_size)
+        all_input_ids = torch.tensor([f.input_ids for f in eval_features], dtype=torch.long)
+        all_input_mask = torch.tensor([f.input_mask for f in eval_features], dtype=torch.long)
+        all_segment_ids = torch.tensor([f.segment_ids for f in eval_features], dtype=torch.long)
+        all_ratings = torch.tensor([f.rating for f in eval_features], dtype=torch.long)
+        eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_ratings)
+        # Run prediction for full data
+        eval_sampler = SequentialSampler(eval_data)
+        eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
+
+        model.eval()
+        eval_loss, eval_accuracy = 0, 0
+        nb_eval_steps, nb_eval_examples = 0, 0
+
+        for input_ids, input_mask, segment_ids, ratings in tqdm(eval_dataloader):
+            input_ids = input_ids.to(device)
+            input_mask = input_mask.to(device)
+            segment_ids = segment_ids.to(device)
+            ratings = ratings.to(device)
+
+            with torch.no_grad():
+                tmp_loss, logits = model(input_ids, segment_ids, input_mask, ratings)
+
+            logits = logits.detach().cpu().numpy()
+            ratings = ratings.to('cpu').numpy()
+
+            # tmp_eval_accuracy = rmse(logits, ratings)
+
+            eval_loss += tmp_loss.mean().item()
+            # eval_accuracy += tmp_eval_accuracy
+
+            nb_eval_examples += input_ids.size(0)
+            nb_eval_steps += 1
+
+        eval_loss = eval_loss / nb_eval_steps
+        # eval_accuracy = eval_accuracy / nb_eval_examples
+
+        # if args.do_train:
+        #     result = {'eval_loss': eval_loss,
+        #           'eval_accuracy': eval_accuracy,
+        #           'global_step': global_step,
+        #           'loss': tr_loss/nb_tr_steps}
+        # else:
+        result = {'eval_loss': eval_loss,
+              # 'eval_accuracy': eval_accuracy,
+              'global_step': global_step}
+
+        output_eval_file = os.path.join(args.output_dir, "eval_results.txt")
+        with open(output_eval_file, "w") as writer:
+            logger.info("***** Eval results *****")
+            for key in sorted(result.keys()):
+                logger.info("  %s = %s", key, str(result[key]))
+                writer.write("%s = %s\n" % (key, str(result[key])))
 
 
     # if args.do_predict and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
