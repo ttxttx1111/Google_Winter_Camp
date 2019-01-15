@@ -376,7 +376,7 @@ def main():
                         type=float, default=128,
                         help='Loss scaling, positive power of 2 values can improve fp16 convergence.')
     parser.add_argument('--load_checkpoint',
-                        default=True,
+                        default=False,
                         help='Whether to load from exisiting checkpoint')
     parser.add_argument('--checkpoint_path',
                         type=str, default=base_dir + "/dmsc/model/chinese_base_epoch_2_part_train.dat",
