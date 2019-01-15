@@ -27,15 +27,15 @@ local = True
 
 if local:
     base_dir = "/home/ttx/Google_Winter_Camp/dmsc_bert/"
-    bert_model = base_dir + "model/chinese"
+    bert_model = base_dir + "model/chinese/"
 else:
     base_dir = "/home/ttxttx1111/Google_Winter_Camp/dmsc_bert/"
     bert_model = "bert-base-chinese"
 
 
-cached = True
+cached = False
 
-model_id = 2
+model_id = 4
 load_checkpoint_flag = False
 checkpoint_path = base_dir + "/model/_epoch_2_part_train.dat"
 
