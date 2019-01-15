@@ -25,14 +25,16 @@ import shutil
 
 base_dir = "/home/ttx/Google_Winter_Camp/dmsc_bert/"
 
-cached = False
+cached = True
 
-load_checkpoint = True
+load_checkpoint_flag = False
 checkpoint_path = base_dir + "/model/_epoch_2_part_train.dat"
 
-do_train = False
+do_train = True
 do_eval = True
 do_predict = False
+
+model_id = 2
 ###-------------------------global configurations-------------------------
 
 
@@ -305,7 +307,7 @@ def main():
                         type=str,
                         help="The output directory where the model results will be written.")
     parser.add_argument("--model_dir",
-                        default=base_dir + "/model/",
+                        default=base_dir + "/model/" + str(model_id) + "/",
                         type=str,
                         help="The output directory where the model checkpoints will be written.")
 
@@ -385,7 +387,7 @@ def main():
                         type=float, default=128,
                         help='Loss scaling, positive power of 2 values can improve fp16 convergence.')
     parser.add_argument('--load_checkpoint',
-                        default=load_checkpoint,
+                        default=load_checkpoint_flag,
                         help='Whether to load from exisiting checkpoint')
     parser.add_argument('--checkpoint_path',
                         type=str, default=checkpoint_path,

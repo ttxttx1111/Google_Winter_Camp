@@ -361,7 +361,7 @@ def main():
 
     parser.add_argument('--gradient_accumulation_steps',
                         type=int,
-                        default=4,
+                        default=1,
                         help="Number of updates steps to accumualte before performing a backward/update pass.")
 
     parser.add_argument('--optimize_on_cpu',
@@ -531,6 +531,7 @@ def main():
         train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=args.train_batch_size)
 
         model.train()
+        tr_losses = []
         for epoch in trange(int(args.num_train_epochs), desc="Epoch"):
             tr_loss = 0
             nb_tr_examples, nb_tr_steps = 0, 0
@@ -569,6 +570,7 @@ def main():
                         optimizer.step()
                     model.zero_grad()
                     global_step += 1
+            tr_losses.append(tr_loss)
 
             filename = args.model_dir + "_epoch_" + str(epoch) + "_part_train.dat"
 
@@ -577,89 +579,92 @@ def main():
                              'optimizer': optimizer.state_dict(),
                              },
                             filename=filename)
+            output_prediction_file = os.path.join(args.output_dir, "train_loss.txt")
+            with open(output_prediction_file, "w") as writer:
+                for i, lo in enumerate(tr_losses):
+                    writer.write("epoch %s, %s\n" % (str(i), str(lo)))
+
+    if args.do_eval and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
+
+        if cached:
+            # load examples
+            with open(args.cached_dev_examples, "rb") as reader:
+                eval_examples = pickle.load(reader)
+
+            # load features
+            with open(args.cached_dev_features, "rb") as reader:
+                eval_features = pickle.load(reader)
+        else:
+
+            # save examples
+            eval_examples = processor.get_dev_examples(args.data_dir)
+            with open(args.cached_dev_examples, 'wb') as writer:
+                pickle.dump(eval_examples, writer)
+
+            # save features
+            eval_features = convert_examples_to_features(
+                eval_examples, args.max_seq_length, tokenizer)
+            with open(args.cached_dev_features, 'wb') as writer:
+                pickle.dump(eval_features, writer)
+
+        logger.info("***** Running evaluation *****")
+        logger.info("  Num examples = %d", len(eval_examples))
+        logger.info("  Batch size = %d", args.eval_batch_size)
+        all_input_ids = torch.tensor([f.input_ids for f in eval_features], dtype=torch.long)
+        all_input_mask = torch.tensor([f.input_mask for f in eval_features], dtype=torch.long)
+        all_segment_ids = torch.tensor([f.segment_ids for f in eval_features], dtype=torch.long)
+        all_ratings = torch.tensor([f.rating for f in eval_features], dtype=torch.long)
+        eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_ratings)
+        # Run prediction for full data
+        eval_sampler = SequentialSampler(eval_data)
+        eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
+
+        model.eval()
+        eval_loss, eval_accuracy = 0, 0
+        nb_eval_steps, nb_eval_examples = 0, 0
+
+        for input_ids, input_mask, segment_ids, ratings in tqdm(eval_dataloader):
+            input_ids = input_ids.to(device)
+            input_mask = input_mask.to(device)
+            segment_ids = segment_ids.to(device)
+            ratings = ratings.to(device)
+
+            with torch.no_grad():
+                tmp_loss, logits = model(input_ids, segment_ids, input_mask, ratings)
+
+            logits = logits.detach().cpu().numpy()
+            ratings = ratings.to('cpu').numpy()
+
+            # tmp_eval_accuracy = rmse(logits, ratings)
+
+            eval_loss += tmp_loss.mean().item()
+            # eval_accuracy += tmp_eval_accuracy
+
+            nb_eval_examples += input_ids.size(0)
+            nb_eval_steps += 1
+
+        eval_loss = eval_loss / nb_eval_steps
+        # eval_accuracy = eval_accuracy / nb_eval_examples
+
+        # if args.do_train:
+        #     result = {'eval_loss': eval_loss,
+        #           'eval_accuracy': eval_accuracy,
+        #           'global_step': global_step,
+        #           'loss': tr_loss/nb_tr_steps}
+        # else:
+        result = {'eval_loss': eval_loss,
+                  # 'eval_accuracy': eval_accuracy,
+                  'global_step': global_step}
+
+        output_eval_file = os.path.join(args.output_dir, "eval_results.txt")
+        with open(output_eval_file, "w") as writer:
+            logger.info("***** Eval results *****")
+            for key in sorted(result.keys()):
+                logger.info("  %s = %s", key, str(result[key]))
+                writer.write("%s = %s\n" % (key, str(result[key])))
 
 
-    # if args.do_eval and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
-    #
-    #     if cached:
-    #         # load examples
-    #         with open(args.cached_dev_examples, "rb") as reader:
-    #             eval_examples = pickle.load(reader)
-    #
-    #         # load features
-    #         with open(args.cached_dev_features, "rb") as reader:
-    #             eval_features = pickle.load(reader)
-    #     else:
-    #
-    #         # save examples
-    #         eval_examples = processor.get_dev_examples(args.data_dir)
-    #         with open(args.cached_dev_examples, 'wb') as writer:
-    #             pickle.dump(eval_examples, writer)
-    #
-    #         # save features
-    #         eval_features = convert_examples_to_features(
-    #             eval_examples, label_list, args.max_seq_length, tokenizer)
-    #         with open(args.cached_dev_features, 'wb') as writer:
-    #             pickle.dump(eval_features, writer)
-    #
-    #
-    #     logger.info("***** Running evaluation *****")
-    #     logger.info("  Num examples = %d", len(eval_examples))
-    #     logger.info("  Batch size = %d", args.eval_batch_size)
-    #     all_input_ids = torch.tensor([f.input_ids for f in eval_features], dtype=torch.long)
-    #     all_input_mask = torch.tensor([f.input_mask for f in eval_features], dtype=torch.long)
-    #     all_segment_ids = torch.tensor([f.segment_ids for f in eval_features], dtype=torch.long)
-    #     all_label_ids = torch.tensor([f.label_id for f in eval_features], dtype=torch.long)
-    #     eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
-    #     # Run prediction for full data
-    #     eval_sampler = SequentialSampler(eval_data)
-    #     eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
-    #
-    #     model.eval()
-    #     eval_loss, eval_accuracy = 0, 0
-    #     nb_eval_steps, nb_eval_examples = 0, 0
-    #
-    #     for input_ids, input_mask, segment_ids, label_ids in tqdm(eval_dataloader):
-    #         input_ids = input_ids.to(device)
-    #         input_mask = input_mask.to(device)
-    #         segment_ids = segment_ids.to(device)
-    #         label_ids = label_ids.to(device)
-    #
-    #         with torch.no_grad():
-    #             tmp_eval_loss, logits = model(input_ids, segment_ids, input_mask, label_ids)
-    #
-    #         logits = logits.detach().cpu().numpy()
-    #         label_ids = label_ids.to('cpu').numpy()
-    #         tmp_eval_accuracy = accuracy(logits, label_ids)
-    #
-    #         eval_loss += tmp_eval_loss.mean().item()
-    #         eval_accuracy += tmp_eval_accuracy
-    #
-    #         nb_eval_examples += input_ids.size(0)
-    #         nb_eval_steps += 1
-    #
-    #     eval_loss = eval_loss / nb_eval_steps
-    #     eval_accuracy = eval_accuracy / nb_eval_examples
-    #
-    #     if args.do_train:
-    #         result = {'eval_loss': eval_loss,
-    #               'eval_accuracy': eval_accuracy,
-    #               'global_step': global_step,
-    #               'loss': tr_loss/nb_tr_steps}
-    #     else:
-    #         result = {'eval_loss': eval_loss,
-    #               'eval_accuracy': eval_accuracy,
-    #               'global_step': global_step}
-    #
-    #     output_eval_file = os.path.join(args.output_dir, "eval_results.txt")
-    #     with open(output_eval_file, "w") as writer:
-    #         logger.info("***** Eval results *****")
-    #         for key in sorted(result.keys()):
-    #             logger.info("  %s = %s", key, str(result[key]))
-    #             writer.write("%s = %s\n" % (key, str(result[key])))
-
-
-    # if args.do_predict and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
+                # if args.do_predict and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
     #
     #     predictions = {}
     #

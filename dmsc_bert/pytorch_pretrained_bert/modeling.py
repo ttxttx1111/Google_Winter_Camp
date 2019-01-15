@@ -868,7 +868,7 @@ class BertForSequenceRegression(PreTrainedBertModel):
         pooled_output = self.dropout(pooled_output)
         logits = self.linear(pooled_output)
 
-        # logits = torch.clamp(logits, min=1, max=5)
+        logits = torch.clamp(logits, min=1, max=5)
 
         if ratings is not None:
             loss_fct = MSELoss(weights)
