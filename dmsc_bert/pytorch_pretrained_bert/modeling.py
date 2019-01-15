@@ -860,7 +860,7 @@ class BertForSequenceRegression(PreTrainedBertModel):
         super(BertForSequenceRegression, self).__init__(config)
         self.bert = BertModel(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.linear = nn.Linear(config.hidden_size)
+        self.linear = nn.Linear(config.hidden_size, 1)
         self.apply(self.init_bert_weights)
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, ratings=None, weights=None):
@@ -870,7 +870,7 @@ class BertForSequenceRegression(PreTrainedBertModel):
 
         if ratings is not None:
             loss_fct = MSELoss(weights)
-            loss = loss_fct(logits.view(-1), ratings.view(-1))
+            loss = loss_fct(logits.view(-1), ratings.view(-1).float())
             return loss, logits
         else:
             return logits
