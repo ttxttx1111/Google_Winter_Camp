@@ -19,6 +19,7 @@ class Predictor:
         self.trainer = word_frq(self.syspath+r'/online')
         self.loss=0
         self.num=0
+        self.ma = [[0 for i in range(5)] for i in range(5)]
 
     def get_score(self,words,model):
         if self.vector_len==0:
@@ -62,7 +63,7 @@ class Predictor:
             return max_stars[0]+1
         else:
             #print(comment,film)
-            return choice(max_stars)+1
+            return -1
 
     def receive_data(self,comment,film,star=0,like=0,update=True):
         '''
@@ -78,41 +79,63 @@ class Predictor:
                 self.trainer.add_comment(comment,film,star)
                 for i in range(like):
                     self.trainer.add_comment(comment, film, star)
-            loss=pre_star-star
-            self.num+=1
-            self.loss+=loss*loss
+            if pre_star!=-1:
+                self.ma[star-1][pre_star-1]+=1
+                loss=pre_star-star
+                self.num+=1
+                self.loss+=loss*loss
         return pre_star
 
     def cal_MSE(self):
+
         if self.num!=0:
-            return self.loss/self.num
+            ret= self.loss/self.num
         else:
-            return -1
+            ret= -1
+        self.loss=0
+        self.num=0
+        return ret
 
     def end(self):
         self.trainer.end()
 
-if __name__ == '__main__':
-    test_data=pandas.read_csv(get_data_path()+r'/rest_data.csv')
+def test():
+    test_data = pandas.read_csv(get_data_path() + r'/rest_data.csv')
     print(time.strftime("%H:%M:%S", time.localtime()))
     print("load_data complete")
-    predictor=Predictor()
-    idxs=[]
-    MSEs=[]
+
+    predictor = Predictor()
+    idxs = []
+    MSEs = []
     print(time.strftime("%H:%M:%S", time.localtime()))
     print("start:")
-    for idx,row in test_data.iterrows():
-        predictor.receive_data(row['Comment'],row['Movie_Name_EN'],row['Star'],row['Like'])
-        if idx%100000==0 and idx!=0:
+    for idx, row in test_data.iterrows():
+        predictor.receive_data(row['Comment'], row['Movie_Name_EN'], row['Star'], row['Like'])
+        if idx % 100000 == 0 and idx != 0:
             idxs.append(idx)
-            mse=predictor.cal_MSE()
+            mse = predictor.cal_MSE()
             MSEs.append(mse)
             print(time.strftime("%H:%M:%S", time.localtime()))
-            print("{}:{}\n".format(idx,mse))
+            print("{}:{}\n".format(idx, mse))
     print(predictor.cal_MSE())
     predictor.end()
 
-    with open("MSE.txt",'w') as f:
-        f.write(idxs)
+    with open("MSE_nr.txt", 'w') as f:
+        f.write(str(idxs))
         f.write('\n')
-        f.write(MSEs)
+        f.write(str(MSEs))
+        f.write(str(predictor.ma))
+
+def interact():
+    predictor = Predictor()
+    while True:
+        comment=input()
+        if comment=='0':
+            break
+        a=predictor.receive_data(comment, 'Avengers Age of Ultron')
+        print(a)
+
+
+if __name__ == '__main__':
+    #interact()
+    test()
