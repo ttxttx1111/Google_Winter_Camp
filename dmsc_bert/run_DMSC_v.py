@@ -442,11 +442,6 @@ def main():
     if n_gpu > 0:
         torch.cuda.manual_seed_all(args.seed)
 
-    # if not args.do_train and not args.do_eval:
-    #     raise ValueError("At least one of `do_train` or `do_eval` must be True.")
-
-    # if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
-    #     raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
     os.makedirs(args.output_dir, exist_ok=True)
 
     task_name = args.task_name.lower()
@@ -658,28 +653,14 @@ def main():
             with torch.no_grad():
                 tmp_loss, logits = model(input_ids, segment_ids, input_mask, ratings)
 
-            logits = logits.detach().cpu().numpy()
-            ratings = ratings.to('cpu').numpy()
-
-            # tmp_eval_accuracy = rmse(logits, ratings)
-
             eval_loss += tmp_loss.mean().item()
-            # eval_accuracy += tmp_eval_accuracy
 
             nb_eval_examples += input_ids.size(0)
             nb_eval_steps += 1
 
         eval_loss = eval_loss / nb_eval_steps
-        # eval_accuracy = eval_accuracy / nb_eval_examples
 
-        # if args.do_train:
-        #     result = {'eval_loss': eval_loss,
-        #           'eval_accuracy': eval_accuracy,
-        #           'global_step': global_step,
-        #           'loss': tr_loss/nb_tr_steps}
-        # else:
         result = {'eval_loss': eval_loss,
-              # 'eval_accuracy': eval_accuracy,
               'global_step': global_step}
 
         output_eval_file = os.path.join(args.output_dir, "eval_results.txt")
@@ -690,81 +671,6 @@ def main():
                 writer.write("%s = %s\n" % (key, str(result[key])))
 
 
-    # if args.do_predict and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
-    #
-    #     predictions = {}
-    #
-    #     label_map = {}
-    #     for (i, label) in enumerate(label_list):
-    #         label_map[label] = i
-    #     label_inv_map = {v: k for k, v in label_map.items()}
-    #
-    #     if cached:
-    #         # load examples
-    #         with open(args.cached_test_examples, "rb") as reader:
-    #             test_examples = pickle.load(reader)
-    #
-    #         # load features
-    #         with open(args.cached_test_examples, "rb") as reader:
-    #             test_examples = pickle.load(reader)
-    #
-    #     else:
-    #         # save examples
-    #         test_examples = processor.get_test_examples(args.data_dir)
-    #         with open(args.cached_test_examples, 'wb') as writer:
-    #             pickle.dump(test_examples, writer)
-    #
-    #         # save features
-    #         test_features = convert_examples_to_features(
-    #             test_examples, label_list, args.max_seq_length, tokenizer)
-    #         with open(args.cached_test_features, 'wb') as writer:
-    #             pickle.dump(test_features, writer)
-    #
-    #
-    #     logger.info("***** Running prediction *****")
-    #     logger.info("  Num examples = %d", len(test_examples))
-    #     logger.info("  Batch size = %d", args.predict_batch_size)
-    #     all_input_ids = torch.tensor([f.input_ids for f in test_features], dtype=torch.long)
-    #     all_input_mask = torch.tensor([f.input_mask for f in test_features], dtype=torch.long)
-    #     all_segment_ids = torch.tensor([f.segment_ids for f in test_features], dtype=torch.long)
-    #     test_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids)
-    #     # Run prediction for full data
-    #     test_sampler = SequentialSampler(test_data)
-    #     test_dataloader = DataLoader(test_data, sampler=test_sampler, batch_size=args.predict_batch_size)
-    #
-    #     all_guids = [f.guid for f in test_examples]
-    #     guid_count = 0
-    #
-    #     model.eval()
-    #
-    #     nb_test_steps, nb_test_examples = 0, 0
-    #
-    #     for input_ids, input_mask, segment_ids in tqdm(test_dataloader):
-    #         input_ids = input_ids.to(device)
-    #         input_mask = input_mask.to(device)
-    #         segment_ids = segment_ids.to(device)
-    #
-    #         with torch.no_grad():
-    #             logits = model(input_ids, segment_ids, input_mask)
-    #
-    #         logits = logits.detach().cpu().numpy()
-    #         outputs = np.argmax(logits, axis=1)
-    #
-    #         for output in outputs:
-    #             predictions[all_guids[guid_count]] = output
-    #             guid_count += 1
-    #
-    #         nb_test_examples += input_ids.size(0)
-    #         nb_test_steps += 1
-    #
-    #     print("Total number of test examples: " + str(nb_test_examples) + " Total number of test steps: " + str(nb_test_steps))
-    #
-    #     output_prediction_file = os.path.join(args.output_dir, "prediction.csv")
-    #     with open(output_prediction_file, "w") as writer:
-    #         logger.info("***** writing predictions to " + output_prediction_file + " *****")
-    #         writer.write("Id,Category\n")
-    #         for key in sorted(predictions.keys()):
-    #             writer.write("%s,%s\n" % (str(key), str(label_inv_map[predictions[key]])))
 
 if __name__ == "__main__":
     main()
