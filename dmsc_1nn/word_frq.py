@@ -54,7 +54,7 @@ class word_frq:
                     self.tot_star_len[i]=str(buf)
                 existed_data=pandas.read_csv(self.syspath+r'/{}.csv'.format(i),index_col='Word', encoding='utf-8')
                 for word in existed_data.index:
-                    self.tot_star_data[i][word]=existed_data[word]['num']
+                    self.tot_star_data[i][word]=existed_data.loc[word]['num']
             for filename in os.listdir(self.syspath):
                 pathname = os.path.join(self.syspath, filename)
                 if (os.path.isdir(pathname)):
@@ -65,7 +65,7 @@ class word_frq:
                         self.tot_star_film_data[i][filename]={}
                         existed_data = pandas.read_csv(pathname + r'/{}.csv'.format(i), index_col='Word', encoding='utf-8')
                         for word in existed_data.index:
-                            self.tot_star_film_data[i][filename][word] = existed_data[word]['num']
+                            self.tot_star_film_data[i][filename][word] = existed_data.loc[word]['num']
 
         print(time.strftime("%H:%M:%S", time.localtime()))
         print("read_saved complete")
@@ -133,9 +133,9 @@ class word_frq:
 
         for i in range(MAX_STAR):
             self.tot_star_len[i] += self.star_len[i]
-            with open(self.syspath + r'/star_{}'.format(i),'w') as f:
+            with open(self.syspath + r'/{}'.format(i),'w') as f:
                 f.write(str(self.tot_star_len[i]))
-            self.tot_star_data[i] = update(self.syspath + r'/star_{}.csv'.format(i), self.star_data[i], new_all_data,
+            self.tot_star_data[i] = update(self.syspath + r'/{}.csv'.format(i), self.star_data[i], new_all_data,
                                            new_all_data, self.tot_star_len[i], MAX_STAR)
 
             for film, film_data in self.star_film_data[i].items():
