@@ -5,53 +5,79 @@ import platform
 from dmsc_1nn.tfidf import tf_idf
 from functools import wraps
 from data.data_util import *
-
+import time
 MAX_STAR = 5
+
 
 def singleton(cls):
     instances = {}
+
     @wraps(cls)
     def getinstance(*args, **kw):
         if cls not in instances:
             instances[cls] = cls(*args, **kw)
         return instances[cls]
+
     return getinstance
+
 
 @singleton
 class word_frq:
-    def __init__(self,syspath=""):
-        self.tot_init()
-        self.temp_init()
+    def __init__(self, syspath=""):
         self.UPDATE_THRESHOLD = 500000
-        self.MIN_freq=150
+        self.MIN_freq = 150
         if not syspath:
             if platform.system().find("Windows") >= 0:
                 self.syspath = r'/Google_Winter_Camp/data'
             else:
                 self.syspath = r'/home/smalljust19/Google_Winter_Camp/data'
         else:
-            self.syspath=syspath
-        self.stops=stop_set(self.syspath+r'/stop_words')
+            self.syspath = syspath
+        self.stops = stop_set(self.syspath + r'/stop_words')
+        self.tot_init()
+        self.temp_init()
+
 
     def tot_init(self):
-        '''
-        只记录各类字数
-        :return:
-        '''
-        #self.tot_film_len = {}
+        # self.tot_film_len = {}
+
+        self.tot_star_data = [{}, {}, {}, {}, {}]
         self.tot_star_len = [0, 0, 0, 0, 0]
+        self.tot_star_film_data = [{}, {}, {}, {}, {}]
         self.tot_star_film_len = [{}, {}, {}, {}, {}]
-        #self.tot_len = 0  # 总字数
+        if os.path.exists(self.syspath):
+            for i in range(MAX_STAR):
+                with open(self.syspath+r'/{}'.format(i)) as f:
+                    buf=f.read()
+                    self.tot_star_len[i]=str(buf)
+                existed_data=pandas.read_csv(self.syspath+r'/{}.csv'.format(i),index_col='Word', encoding='utf-8')
+                for word in existed_data.index:
+                    self.tot_star_data[i][word]=existed_data[word]['num']
+            for filename in os.listdir(self.syspath):
+                pathname = os.path.join(self.syspath, filename)
+                if (os.path.isdir(pathname)):
+                    for i in range(MAX_STAR):
+                        with open(pathname + r'/{}'.format(i)) as f:
+                            buf = f.read()
+                            self.tot_star_film_len[i][filename] = str(buf)
+                        self.tot_star_film_data[i][filename]={}
+                        existed_data = pandas.read_csv(pathname + r'/{}.csv'.format(i), index_col='Word', encoding='utf-8')
+                        for word in existed_data.index:
+                            self.tot_star_film_data[i][filename][word] = existed_data[word]['num']
+
+        print(time.strftime("%H:%M:%S", time.localtime()))
+        print("read_saved complete")
+        # self.tot_len = 0  # 总字数
 
     def temp_init(self):
         self.film_data = {}
-        #self.film_len = {}  # 文本字数
+        # self.film_len = {}  # 文本字数
         self.star_data = [{}, {}, {}, {}, {}]
         self.star_len = [0, 0, 0, 0, 0]
         self.star_film_data = [{}, {}, {}, {}, {}]
         self.star_film_len = [{}, {}, {}, {}, {}]
         self.temp_data = {}
-        #self.temp_len = 0
+        # self.temp_len = 0
         self.temp_sum = 0
 
     def cat_file(self, file_name):
@@ -63,21 +89,21 @@ class word_frq:
             temp = pandas.DataFrame(data=None, columns=['Word', 'num', 'freq'])
             temp.to_csv(file_name, index=False, encoding='utf-8')
 
-    def update_file(self, file_name, data,filter,father_data, cur_len, all_len):
+    def update_file(self, file_name, data, filter, father_data, cur_len, all_len):
         local_data = pandas.read_csv(file_name, index_col='Word', encoding='utf-8')
         if filter is None:
-            filter=local_data
+            filter = local_data
         for word, num in data.items():
-            if word in filter.index or num>=self.MIN_freq:
+            if word in filter.index or num >= self.MIN_freq:
                 if word in local_data.index:
                     local_data.loc[word]['num'] += num
-                    if all_len!=0:
+                    if all_len != 0:
                         local_data.loc[word]['freq'] = tf_idf(cur_times=local_data.loc[word]['num'],
                                                               all_times=father_data.loc[word]['num'],
                                                               cur_len=cur_len,
                                                               all_len=all_len).tfidf()
                 else:
-                    if all_len!=0:
+                    if all_len != 0:
                         freq = tf_idf(cur_times=num,
                                       all_times=father_data.loc[word]['num'],
                                       cur_len=cur_len,
@@ -91,30 +117,39 @@ class word_frq:
 
     def update_data(self):
 
-        def update(file_name, data,filter, father_data, cur_len, all_len):
+        def update(file_name, data, filter, father_data, cur_len, all_len):
             self.cat_file(file_name)
-            return self.update_file(file_name, data,filter,father_data, cur_len, all_len)
+            return self.update_file(file_name, data, filter, father_data, cur_len, all_len)
 
-        new_all_data = update(self.syspath + r'/all.csv', self.temp_data,None,
+        new_all_data = update(self.syspath + r'/all.csv', self.temp_data, None,
                               None, 0, 0)
 
         new_film_data = {}
         for film, film_data in self.film_data.items():
-            new_film_data[film] = update(self.syspath + r'/' + film + r'/all.csv', film_data,new_all_data,
+            new_film_data[film] = update(self.syspath + r'/' + film + r'/all.csv', film_data, new_all_data,
                                          None, 0, 0)
 
         for i in range(MAX_STAR):
-            self.tot_star_len[i]+=self.star_len[i]
-            update(self.syspath + r'/star_{}.csv'.format(i), self.star_data[i], new_all_data,
-                   new_all_data,self.tot_star_len[i], MAX_STAR)
+            self.tot_star_len[i] += self.star_len[i]
+            with open(self.syspath + r'/star_{}'.format(i),'w') as f:
+                f.write(str(self.tot_star_len[i]))
+            self.tot_star_data[i] = update(self.syspath + r'/star_{}.csv'.format(i), self.star_data[i], new_all_data,
+                                           new_all_data, self.tot_star_len[i], MAX_STAR)
 
             for film, film_data in self.star_film_data[i].items():
-                self.tot_star_film_len[i][film]=self.tot_star_film_len[i].get(film,0)+self.star_film_len[i].get(film,0)
-                update(self.syspath + r'/' + film + r'/{}.csv'.format(i), film_data, new_all_data,
-                       new_film_data[film],self.tot_star_film_len[i][film], MAX_STAR)
+                self.tot_star_film_len[i][film] = self.tot_star_film_len[i].get(film, 0) + self.star_film_len[i].get(
+                    film, 0)
+                with open(self.syspath + r'/' + film + r'/{}'.format(i), 'w') as f:
+                    f.write(str(self.tot_star_film_len[i][film]))
+                self.tot_star_film_data[i][film] = update(self.syspath + r'/' + film + r'/{}.csv'.format(i), film_data,
+                                                          new_all_data, new_film_data[film],
+                                                          self.tot_star_film_len[i][film], MAX_STAR)
+
+        print(time.strftime("%H:%M:%S", time.localtime()))
+        print("update on going")
 
     def temp_data_update(self, words, film, star):
-        self.temp_sum+=1
+        self.temp_sum += 1
 
         if not self.film_data.get(film):
             self.film_data[film] = {}
@@ -143,6 +178,9 @@ class word_frq:
 
     def end(self):
         self.update_data()
+        print(time.strftime("%H:%M:%S", time.localtime()))
+        print("update complete")
+
 
 if __name__ == '__main__':
     t = word_frq()

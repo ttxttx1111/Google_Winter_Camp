@@ -13,13 +13,14 @@ def get_data_path():
     return syspath
 
 def data_separate(syspath):
+    scale=1500000
     raw_data=pandas.read_csv(syspath+r'/DMSC.csv',encoding='utf-8', sep=',')
     raw_data.drop(['ID','Movie_Name_CN','Crawl_Date','Number','Username'],axis=1,inplace=True)
     raw_data.sort_values('Date',inplace=True)
     raw_data.to_csv(syspath+'/Data_by_date.csv',index=False,encoding='utf-8')
-    raw_data[:1000000].to_csv(syspath+'/train_data.csv',index=False,encoding='utf-8')
-    raw_data[1000000:].to_csv(syspath + '/rest_data.csv', index=False, encoding='utf-8')
-    return raw_data[:1000000]
+    raw_data[:scale].to_csv(syspath+'/train_data.csv',index=False,encoding='utf-8')
+    raw_data[scale:].to_csv(syspath + '/rest_data.csv', index=False, encoding='utf-8')
+    return raw_data[:scale]
 
 def pre_train():
     syspath=get_data_path()
@@ -41,6 +42,6 @@ def pre_train():
     print(time.strftime("%H:%M:%S", time.localtime()))
 
 if __name__ == '__main__':
-    #pre_train()
-    syspath = get_data_path()
-    data_separate(syspath)
+    pre_train()
+    #syspath = get_data_path()
+    #data_separate(syspath)

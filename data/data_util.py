@@ -20,8 +20,9 @@ def filter_user_group(raw_data,min_films=5):
     return user_data[user_data >= min_films]
 
 def stop_set(path):
+    from dmsc_1nn.trainer import get_data_path
     stops=[]
-    with open(path,'r',encoding='utf-8') as f:
+    with open(get_data_path()+r'/stop_words','r',encoding='utf-8') as f:
         for line in f.readlines():
             line=line.strip()
             stops.append(line)

@@ -2,6 +2,7 @@ from dmsc_1nn.word_frq import word_frq
 from dmsc_1nn.trainer import *
 from data.data_util import *
 import shutil
+import time
 import jieba
 import os
 import pandas
@@ -28,7 +29,7 @@ class Predictor:
     def predect(self,comment,film):
         film_path=self.syspath+"/online/"+film
         words=jieba.lcut(comment)
-        scores=[0 for i in range(5)]
+        scores=[0,0,0,0,0]
         if os.path.exists(film_path):
             for i in range(5):
                 model=pandas.read_csv(film_path+r'/{}.csv'.format(i),index_col='Word', encoding='utf-8')
@@ -84,11 +85,16 @@ if __name__ == '__main__':
     predictor=Predictor()
     idxs=[]
     MSEs=[]
+    print(time.strftime("%H:%M:%S", time.localtime()))
+    print("start:")
     for idx,row in test_data.iterrows():
         predictor.receive_data(row['Comment'],row['Movie_Name_EN'],row['Star'],row['Like'])
         if idx%100000==0 and idx!=0:
             idxs.append(idx)
-            MSEs.append(predictor.cal_MSE())
+            mse=predictor.cal_MSE()
+            MSEs.append(mse)
+            print(time.strftime("%H:%M:%S", time.localtime()))
+            print("{}:{}\n".format(idx,mse))
     print(predictor.cal_MSE())
     predictor.end()
 
