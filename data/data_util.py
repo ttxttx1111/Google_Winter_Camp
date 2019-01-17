@@ -19,9 +19,9 @@ def filter_user_group(raw_data,min_films=5):
     user_data = group_by_user(raw_data)
     return user_data[user_data >= min_films]
 
-def stop_set():
+def stop_set(path):
     stops=[]
-    with open('stop_words','r',encoding='utf-8') as f:
+    with open(path,'r',encoding='utf-8') as f:
         for line in f.readlines():
             line=line.strip()
             stops.append(line)

@@ -3,9 +3,21 @@ import jieba
 import os
 import platform
 from dmsc_1nn.tfidf import tf_idf
+from functools import wraps
+from data.data_util import *
 
 MAX_STAR = 5
 
+def singleton(cls):
+    instances = {}
+    @wraps(cls)
+    def getinstance(*args, **kw):
+        if cls not in instances:
+            instances[cls] = cls(*args, **kw)
+        return instances[cls]
+    return getinstance
+
+@singleton
 class word_frq:
     def __init__(self,syspath=""):
         self.tot_init()
@@ -19,8 +31,7 @@ class word_frq:
                 self.syspath = r'/home/smalljust19/Google_Winter_Camp/data'
         else:
             self.syspath=syspath
-        self.stop_set()
-
+        self.stops=stop_set(self.syspath+r'/stop_words')
 
     def tot_init(self):
         '''
@@ -42,13 +53,6 @@ class word_frq:
         self.temp_data = {}
         #self.temp_len = 0
         self.temp_sum = 0
-
-    def stop_set(self):
-        self.stops = []
-        with open(self.syspath+r'/stop_words', 'r', encoding='utf-8') as f:
-            for line in f.readlines():
-                line = line.strip()
-                self.stops.append(line)
 
     def cat_file(self, file_name):
         if os.path.exists(file_name):
@@ -139,7 +143,6 @@ class word_frq:
 
     def end(self):
         self.update_data()
-
 
 if __name__ == '__main__':
     t = word_frq()
