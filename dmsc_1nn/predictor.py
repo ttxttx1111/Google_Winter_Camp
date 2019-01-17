@@ -1,4 +1,5 @@
-from dmsc_1nn.word_frq import word_frq
+import sys
+sys.path.append("..")
 from dmsc_1nn.trainer import *
 from data.data_util import *
 import shutil

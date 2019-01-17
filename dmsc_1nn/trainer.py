@@ -1,5 +1,7 @@
 import pandas
 import platform
+import sys
+sys.path.append("..")
 from dmsc_1nn.word_frq import word_frq
 import time
 import traceback
