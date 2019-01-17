@@ -17,7 +17,7 @@ class tf_idf():
         :param count:
         :return:count[word] / sum(count.values())
         '''
-        return self.cur_len/self.cur_len
+        return self.cur_times/self.cur_len
 
     def n_containing(self):
         """

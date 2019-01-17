@@ -42,8 +42,8 @@ class word_frq:
 
     def tot_init(self):
         # self.tot_film_len = {}
-
-        self.tot_star_data = [{}, {}, {}, {}, {}]
+        empty_df=pandas.DataFrame(None,index=["Word"],columns=['Word','num','freq'])
+        self.tot_star_data = [empty_df, empty_df, empty_df, empty_df, empty_df]
         self.tot_star_len = [0, 0, 0, 0, 0]
         self.tot_star_film_data = [{}, {}, {}, {}, {}]
         self.tot_star_film_len = [{}, {}, {}, {}, {}]
@@ -51,21 +51,20 @@ class word_frq:
             for i in range(MAX_STAR):
                 with open(self.syspath+r'/{}'.format(i)) as f:
                     buf=f.read()
-                    self.tot_star_len[i]=str(buf)
-                existed_data=pandas.read_csv(self.syspath+r'/{}.csv'.format(i),index_col='Word', encoding='utf-8')
-                for word in existed_data.index:
-                    self.tot_star_data[i][word]=existed_data.loc[word]['num']
+                    self.tot_star_len[i]=int(buf)
+                self.tot_star_data[i]=pandas.read_csv(self.syspath+r'/{}.csv'.format(i),index_col='Word', encoding='utf-8')
+                #for word in existed_data.index:
+                #    self.tot_star_data[i][word]=existed_data.loc[word]['num']
             for filename in os.listdir(self.syspath):
                 pathname = os.path.join(self.syspath, filename)
                 if (os.path.isdir(pathname)):
                     for i in range(MAX_STAR):
                         with open(pathname + r'/{}'.format(i)) as f:
                             buf = f.read()
-                            self.tot_star_film_len[i][filename] = str(buf)
-                        self.tot_star_film_data[i][filename]={}
-                        existed_data = pandas.read_csv(pathname + r'/{}.csv'.format(i), index_col='Word', encoding='utf-8')
-                        for word in existed_data.index:
-                            self.tot_star_film_data[i][filename][word] = existed_data.loc[word]['num']
+                            self.tot_star_film_len[i][filename] = int(buf)
+                        self.tot_star_film_data[i][filename] = pandas.read_csv(pathname + r'/{}.csv'.format(i), index_col='Word', encoding='utf-8')
+                        #for word in existed_data.index:
+                        #    self.tot_star_film_data[i][filename][word] = existed_data.loc[word]['num']
 
         print(time.strftime("%H:%M:%S", time.localtime()))
         print("read_saved complete")

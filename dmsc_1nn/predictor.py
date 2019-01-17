@@ -42,12 +42,14 @@ class Predictor:
         scores=[0,0,0,0,0]
         if os.path.exists(film_path):
             for i in range(5):
-                model=pandas.read_csv(film_path+r'/{}.csv'.format(i),index_col='Word', encoding='utf-8')
+                #model=pandas.read_csv(film_path+r'/{}.csv'.format(i),index_col='Word', encoding='utf-8')
+                model=self.trainer.tot_star_film_data[i][film]
                 scores[i]=self.get_score(words,model)
         max_score=max(scores)
         for i in range(5):
             if scores[i]==max_score:
-                model = pandas.read_csv(self.syspath + r'/online/{}.csv'.format(i), index_col='Word', encoding='utf-8')
+                #model = pandas.read_csv(self.syspath + r'/online/{}.csv'.format(i), index_col='Word', encoding='utf-8')
+                model=self.trainer.tot_star_data[i]
                 scores[i] = self.get_score(words, model)
             else:
                 scores[i]=-1
@@ -79,6 +81,7 @@ class Predictor:
             loss=pre_star-star
             self.num+=1
             self.loss+=loss*loss
+        return pre_star
 
     def cal_MSE(self):
         if self.num!=0:
