@@ -19,9 +19,10 @@ def filter_user_group(raw_data,min_films=5):
     user_data = group_by_user(raw_data)
     return user_data[user_data >= min_films]
 
-def stop_set():
+def stop_set(path):
+    from dmsc_1nn.trainer import get_data_path
     stops=[]
-    with open('stop_words','r',encoding='utf-8') as f:
+    with open(get_data_path()+r'/stop_words','r',encoding='utf-8') as f:
         for line in f.readlines():
             line=line.strip()
             stops.append(line)
@@ -67,6 +68,45 @@ def group_by_stars(raw_data):
             for length in sorted_mp:
                 f.write("{} {}\n".format(length[0],length[1]))
 
+def get_score(comment,star_key_words):
+    words=[]
+    sim=0
+    for key_word in star_key_words:
+        if comment.find(key_word)>0:
+            words.append(1)
+            sim+=1
+        else:
+            words.append(0)
+    return sim
+
+def get_all_key_words():
+    key_words = []
+    for i in range(1, 6, 1):
+        with open("keyword" + str(i), 'r', encoding='utf-8') as f:
+            line = f.readline()
+        key_words.append(line.split(','))
+    return key_words
+
+def get_sample():
+    raw_data = pandas.read_csv('Data.csv', encoding='utf-8', sep=',')
+    raw_data.sample(n=10,replace=True)
+    return raw_data['Comment'].tolist()
+
+def classify():
+    key_words=get_all_key_words()
+    samples=get_sample()
+    results=[]
+    for sample in samples:
+        mx=0
+        max_sc=0
+        for i in range(5):
+            sc=get_score(sample,key_words[i])
+            if sc>max_sc:
+                mx=i+1
+                max_sc=sc
+        results.append(mx)
+    return results
+
 def draw_star():
     import matplotlib.pyplot as plt
     fig=plt.figure(figsize=(10,6))
@@ -91,10 +131,10 @@ def get_key_words_by_star(raw_data):
             f.write(",".join(tags))
 
 if __name__ == '__main__':
-    raw_data=pandas.read_csv('Data.csv',encoding='utf-8',sep=',')
+    #raw_data=pandas.read_csv('Data.csv',encoding='utf-8',sep=',')
     #gen_dict(raw_data)
     #raw_data=raw_data.head(10)
     #print(filter_comment_by_like(raw_data).shape[0])
-    get_key_words_by_star(raw_data)
+    print(classify())
     #draw_star()
     #print(group_by_user(raw_data))

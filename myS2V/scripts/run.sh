@@ -9,7 +9,7 @@ NUM_INST=45786400 # Number of sentences
 #DATA_DIR="data/BC_UMBC/TFRecords"
 #NUM_INST=174817800
 
-CFG="BS400-W620-S1200-case-bidir"
+CFG="comment"
 
 BS=400
 SEQ_LEN=30

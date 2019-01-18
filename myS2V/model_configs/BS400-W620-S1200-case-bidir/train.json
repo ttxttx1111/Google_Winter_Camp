@@ -8,8 +8,8 @@
 		"mode": "trained",
 		"name": "word_embedding",
 		"dim": 620,
-		"size": 50001,
-		"vocab_file": "BC_dictionary.txt",
+		"size": 119237,
+		"vocab_file": "dictionary.txt",
 		"embs_file": ""
 	}
 	]
